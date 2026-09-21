@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pista · Dashboard</title>
+<style>
+/* Estética iOS / Apple Minimalista */
+:root {
+  --bg: #f5f5f7;
+  --card: #ffffff;
+  --ink: #1d1d1f;
+  --muted: #86868b;
+  --line: rgba(0,0,0,0.08);
+  --soft: #f0f0f2;
+  --accent: #007aff; /* Azul iOS */
+  --accent-hover: #0056b3;
+  --good: #34c759; /* Verde iOS */
+  --warn: #ff9500; /* Naranja iOS */
+  --bad: #ff3b30;  /* Rojo iOS */
+  --purple: #af52de;
+  --cyan: #32ade6;
+  --font-stack: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #000000;
+    --card: #1c1c1e;
+    --ink: #f5f5f7;
+    --muted: #98989d;
+    --line: rgba(255,255,255,0.15);
+    --soft: #2c2c2e;
+    --accent: #0a84ff;
+    --good: #30d158;
+    --warn: #ff9f0a;
+    --bad: #ff453a;
+  }
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 14px/1.5 var(--font-stack); -webkit-font-smoothing: antialiased; letter-spacing: -0.01em; }
+button, select, input { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* Cabecera translúcida tipo iOS */
+header {
+  position: sticky; top: 0; z-index: 100;
+  background: rgba(255, 255, 255, 0.75);
+  backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--line);
+  padding: 16px 24px; display: flex; justify-content: space-between; align-items: center;
+}
+@media (prefers-color-scheme: dark) { header { background: rgba(28, 28, 30, 0.75); } }
+header h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: -0.5px; }
+
+.actions { display: flex; gap: 10px; }
+.btn {
+  background: var(--soft); border: none; border-radius: 14px; padding: 8px 16px;
+  font-weight: 600; font-size: 13px; cursor: pointer; transition: all 0.2s ease;
+  color: var(--accent);
+}
+.btn:hover { filter: brightness(0.95); transform: scale(0.98); }
+.btn.primary { background: var(--accent); color: #fff; }
+.btn.primary:hover { background: var(--accent-hover); }
+
+/* Barra de estado */
+#status-bar { max-width: 1400px; margin: 16px auto 0; padding: 0 24px; display: flex; justify-content: space-between; font-size: 12px; font-weight: 500; }
+#status { color: var(--muted); }
+#db-status { color: var(--good); }
+
+main { max-width: 1400px; margin: 0 auto; padding: 16px 24px 80px; }
+
+/* KPIs Superiores */
+.strip {
+  display: flex; gap: 16px; overflow-x: auto; padding-bottom: 8px; margin-bottom: 24px;
+  scrollbar-width: none;
+}
+.strip::-webkit-scrollbar { display: none; }
+.kpi {
+  flex: 1; min-width: 140px; background: var(--card); padding: 20px;
+  border-radius: 20px; box-shadow: 0 4px 20px rgba(0,0,0,0.03);
+  display: flex; flex-direction: column; gap: 4px;
+}
+.kl { color: var(--muted); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.kpi b { font-size: 32px; font-weight: 700; letter-spacing: -1px; }
+.ks { font-size: 13px; font-weight: 500; color: var(--muted); }
+.ks.good { color: var(--good); } .ks.warn { color: var(--warn); } .ks.bad { color: var(--bad); }
+
+/* Grid de paneles */
+.grid { display: grid; grid-template-columns: repeat(12, 1fr); gap: 20px; }
+.c12 { grid-column: span 12; } .c8 { grid-column: span 8; } .c6 { grid-column: span 6; } .c4 { grid-column: span 4; }
+@media (max-width: 1100px) { .c4, .c8 { grid-column: span 6; } }
+@media (max-width: 768px) { .c4, .c6, .c8 { grid-column: span 12; } }
+
+.panel {
+  background: var(--card); border-radius: 24px; padding: 24px;
+  box-shadow: 0 4px 24px rgba(0,0,0,0.03); display: flex; flex-direction: column;
+}
+.panel h2 { margin: 0 0 4px 0; font-size: 17px; font-weight: 700; letter-spacing: -0.3px; }
+.panel .sub { margin: 0 0 20px 0; color: var(--muted); font-size: 13px; }
+.panel svg { display: block; width: 100%; height: auto; overflow: visible; }
+
+/* Tablas */
+table.t { width: 100%; border-collapse: collapse; font-size: 13px; }
+table.t th { font-weight: 600; color: var(--muted); text-align: left; padding: 10px 4px; border-bottom: 1px solid var(--line); }
+table.t td { padding: 12px 4px; border-bottom: 1px solid var(--soft); font-weight: 500; }
+table.t td.r, table.t th.r { text-align: right; }
+
+/* Lista de salidas y visor */
+.runs { display: grid; grid-template-columns: 320px 1fr; gap: 24px; }
+@media (max-width: 900px) { .runs { grid-template-columns: 1fr; } }
+.runlist { max-height: 600px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; padding-right: 8px; }
+.ri {
+  background: var(--soft); border-radius: 16px; padding: 16px; border: none;
+  text-align: left; cursor: pointer; transition: all 0.2s ease;
+  display: grid; grid-template-columns: 1fr auto; gap: 8px; align-items: center;
+}
+.ri:hover { transform: scale(0.98); }
+.ri.on { background: var(--accent); color: #fff; }
+.ri.on small { color: rgba(255,255,255,0.8); }
+.ri b { font-size: 15px; font-weight: 600; }
+.ri small { color: var(--muted); font-size: 12px; font-weight: 500; display: block; margin-top: 2px; }
+
+/* Gráficos SVG */
+svg text { font-family: var(--font-stack); font-weight: 500; }
+svg .tk { fill: var(--muted); font-size: 10px; }
+svg .grid { stroke: var(--line); stroke-width: 1; stroke-dasharray: 4 4; }
+.lg { display: flex; flex-wrap: wrap; gap: 16px; color: var(--muted); font-size: 12px; margin-top: 16px; justify-content: center; font-weight: 500; }
+.lg span { display: flex; align-items: center; gap: 6px; }
+.lg i { width: 10px; height: 10px; border-radius: 50%; } /* Puntos en vez de cuadrados para leyenda */
+
+/* Dialog / Ajustes */
+dialog { border: none; border-radius: 24px; background: var(--card); color: var(--ink); padding: 32px; max-width: 500px; width: 90%; box-shadow: 0 24px 48px rgba(0,0,0,0.2); }
+dialog::backdrop { background: rgba(0,0,0,0.4); backdrop-filter: blur(4px); }
+.frm { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin: 24px 0; }
+.frm label { display: flex; flex-direction: column; gap: 8px; font-size: 13px; font-weight: 600; color: var(--ink); }
+.frm input, .frm select { padding: 10px 16px; border: 1px solid var(--line); border-radius: 12px; background: var(--bg); font-weight: 500; }
+.dlg-act { display: flex; justify-content: flex-end; gap: 12px; margin-top: 32px; }
+
+/* Estados vacíos */
+.empty-state { text-align: center; padding: 60px 20px; background: var(--card); border-radius: 24px; border: 2px dashed var(--line); margin-top: 20px; }
+.empty-state h2 { font-size: 22px; margin-bottom: 8px; }
+.empty-state p { color: var(--muted); margin-bottom: 24px; font-size: 14px; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>Pista</h1>
+  <div class="actions">
+    <button class="btn" id="bSet">Ajustes</button>
+    <button class="btn primary" id="bImport">Importar Archivos</button>
+  </div>
+</header>
+
+<div id="status-bar">
+  <div id="status">Iniciando sistema...</div>
+  <div id="db-status">Cargando base de datos...</div>
+</div>
+
+<main id="app"></main>
+
+<input type="file" id="fi" multiple accept=".fit,.gpx,.tcx,.csv,.zip,.json" hidden>
+
+<dialog id="dlg">
+  <form method="dialog" id="frm">
+    <h2 style="margin:0 0 8px; font-size: 20px;">Ajustes Fisiológicos</h2>
+    <p style="color:var(--muted); font-size:13px; margin:0 0 16px; line-height:1.4;">Configura tus métricas para adaptar los cálculos de carga (TSS) y zonas a tu perfil.</p>
+    <div class="frm">
+      <label>Pulso Máximo (ppm)<input type="number" name="maxHR" min="120" max="230"></label>
+      <label>Pulso en Reposo (ppm)<input type="number" name="restHR" min="30" max="100"></label>
+      <label>Umbral LTHR (ppm)<input type="number" name="lthr" min="100" max="220"></label>
+      <label>Historial (Semanas)
+        <select name="weeks"><option value="12">12 Semanas</option><option value="26">6 Meses</option><option value="52">1 Año</option><option value="0">Todo</option></select>
+      </label>
+    </div>
+    <div class="dlg-act">
+      <button type="button" class="btn" id="bClear" style="margin-right:auto; color:var(--bad); background: rgba(255,59,48,0.1);">Borrar Datos</button>
+      <button type="button" class="btn" id="bCancel">Cancelar</button>
+      <button class="btn primary" value="ok" id="bSave">Guardar</button>
+    </div>
+  </form>
+</dialog>
+
+<script>
+'use strict';
+/* =========================================================
+   Utilidades y Estado
+   ========================================================= */
+const $ = (s, r = document) => r.querySelector(s);
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const mean = a => a.length ? a.reduce((x,y) => x+y, 0) / a.length : NaN;
+const nf = (v, d = 0) => isFinite(v) ? v.toLocaleString('es-ES', { minimumFractionDigits: d, maximumFractionDigits: d }) : '–';
+const fmtPace = s => { if(!isFinite(s)||s<=0) return '–'; const t=Math.round(s); return Math.floor(t/60)+':'+String(t%60).padStart(2,'0'); };
+const fmtTime = s => { if(!isFinite(s)) return '–'; const t=Math.round(s), h=Math.floor(t/3600), m=Math.floor(t%3600/60), x=t%60; return h?`${h}:${String(m).padStart(2,'0')}:${String(x).padStart(2,'0')}`:`${m}:${String(x).padStart(2,'0')}`; };
+const MES = ['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+const dayNum = ms => Math.floor(Date.UTC(new Date(ms).getFullYear(), new Date(ms).getMonth(), new Date(ms).getDate()) / 864e5);
+const fmtDay = n => { const d = new Date(n * 864e5); return d.getUTCDate() + ' ' + MES[d.getUTCMonth()]; };
+const tick = () => new Promise(r => setTimeout(r, 0));
+
+const DEF = { maxHR: 195, restHR: 55, lthr: 170, weeks: 26 };
+const S = { acts: [], set: { ...DEF }, sel: null, M: null, persist: false };
+
+/* =========================================================
+   Persistencia Local (IndexedDB)
+   ========================================================= */
+const DB = {
+  db: null, ok: false,
+  open() {
+    return new Promise(res => {
+      try {
+        const r = indexedDB.open('pista-db-v2', 1);
+        r.onupgradeneeded = (e) => {
+          const db = e.target.result;
+          if (!db.objectStoreNames.contains('acts')) db.createObjectStore('acts', { keyPath: 'id' });
+          if (!db.objectStoreNames.contains('meta')) db.createObjectStore('meta');
+        };
+        r.onsuccess = () => { this.db = r.result; this.ok = true; res(true); };
+        r.onerror = () => res(false);
+      } catch (e) { res(false); }
+    });
+  },
+  tx(store, mode, fn) {
+    return new Promise((res, rej) => {
+      if (!this.ok) return res(null);
+      try {
+        const t = this.db.transaction(store, mode);
+        const o = fn(t.objectStore(store));
+        t.oncomplete = () => res(o && o.result !== undefined ? o.result : null);
+        t.onerror = () => rej(t.error);
+      } catch (e) { rej(e); }
+    });
+  },
+  all() { return this.tx('acts', 'readonly', s => s.getAll()); },
+  put(list) { 
+    return this.tx('acts', 'readwrite', s => { 
+      list.forEach(a => {
+        const clean = { ...a };
+        Object.keys(clean).forEach(k => { if(k.startsWith('_')) delete clean[k]; });
+        s.put(clean); 
+      }); 
+    }); 
+  },
+  clear() { return this.tx('acts', 'readwrite', s => s.clear()); },
+  getMeta(k) { return this.tx('meta', 'readonly', s => s.get(k)); },
+  setMeta(k, v) { return this.tx('meta', 'readwrite', s => s.put(v, k)); }
+};
+const saveSettings = () => DB.setMeta('settings', S.set).catch(()=>{});
+
+function updateStatus(msg) { $('#status').textContent = msg; }
+function updateDBStatus(ok) {
+  const el = $('#db-status');
+  if(ok) { el.innerHTML = '● Almacenamiento local activo'; el.style.color = 'var(--good)'; }
+  else { el.innerHTML = '○ Modo offline (no se guardará)'; el.style.color = 'var(--warn)'; }
+}
+
+/* =========================================================
+   Importación (Mocks visuales para la estructura de la demo)
+   ========================================================= */
+async function importFiles(files) {
+  if(!files.length) return;
+  updateStatus('Procesando entrenamientos...'); await tick();
+  let added = 0;
+  
+  for (let f of files) {
+    if (f.name.endsWith('.json')) {
+      try {
+        const data = JSON.parse(await f.text());
+        if (data.acts) { S.acts = [...S.acts, ...data.acts]; added += data.acts.length; }
+      } catch(e) {}
+    } else {
+      // Simulador de archivo procesado para que veas la UI al subir cualquier FIT
+      added++;
+      const now = Date.now() - (Math.random() * 86400000 * 90);
+      S.acts.push({
+        id: Math.round(now/1000), start: now, name: f.name.replace(/\.[^/.]+$/, ""), src: 'import',
+        dist: 6000 + Math.random()*15000, time: 2000 + Math.random()*5000,
+        avgHR: 130 + Math.random()*40, maxHR: 165 + Math.random()*25
+      });
+    }
+  }
+
+  if(S.persist && added > 0) await DB.put(S.acts);
+  updateStatus(`Completado: ${added} archivos guardados.`);
+  render();
+}
+
+/* =========================================================
+   Cálculos Analíticos
+   ========================================================= */
+function computeMetrics() {
+  if(!S.acts.length) return null;
+  S.acts.sort((a,b) => a.start - b.start);
+  
+  const d0 = dayNum(S.acts[0].start);
+  const today = dayNum(Date.now());
+  const N = Math.max(28, today - d0 + 1);
+  const load = new Float64Array(N);
+  
+  let totalKm = 0;
+  S.acts.forEach(a => {
+    a._day = dayNum(a.start);
+    a._tss = a.time / 3600 * 55; // TSS mock base
+    a._km = a.dist / 1000;
+    if(a._day >= d0) load[a._day - d0] += a._tss;
+    totalKm += a._km;
+  });
+
+  let ctl = 0, atl = 0;
+  const ctlArr = new Float64Array(N), atlArr = new Float64Array(N), tsbArr = new Float64Array(N);
+  for(let i=0; i<N; i++) {
+    const l = load[i] || 0;
+    ctl += (l - ctl) / 42;
+    atl += (l - atl) / 7;
+    ctlArr[i] = ctl; atlArr[i] = atl; tsbArr[i] = ctl - atl;
+  }
+
+  return { acts: S.acts, d0, today, N, load, ctl: ctlArr, atl: atlArr, tsb: tsbArr, totalKm };
+}
+
+/* =========================================================
+   Gráficas SVG (Estilo Apple)
+   ========================================================= */
+function frame(w, h, m={l:30, r:10, t:10, b:25}) { return {w, h, m, x0: m.l, x1: w-m.r, y0: h-m.b, y1: m.t}; }
+const svgw = (f, inner) => `<svg viewBox="0 0 ${f.w} ${f.h}">${inner}</svg>`;
+const lin = (d0, d1, r0, r1) => v => r0 + (v-d0)/((d1-d0)||1) * (r1-r0);
+
+// Función auxiliar para ejes limpios
+function axis(f, sy, ticks, isY = true) {
+  return ticks.map(t => `
+    <line class="grid" x1="${f.x0}" x2="${f.x1}" y1="${sy(t)}" y2="${sy(t)}" />
+    <text class="tk" x="${f.x0-8}" y="${sy(t)+4}" text-anchor="end">${t}</text>
+  `).join('');
+}
+
+function chPMC(M) {
+  const f = frame(800, 240);
+  const showDays = Math.min(M.N, S.set.weeks ? S.set.weeks * 7 : M.N);
+  const startIdx = M.N - showDays;
+  const sx = lin(startIdx, M.N-1, f.x0, f.x1);
+  let maxVal = 10;
+  for(let i=startIdx; i<M.N; i++) maxVal = Math.max(maxVal, M.ctl[i], M.atl[i], Math.abs(M.tsb[i]));
+  const sy = lin(-maxVal*1.1, maxVal*1.2, f.y0, f.y1);
+  
+  let dCTL='', dATL='', dTSB='';
+  for(let i=startIdx; i<M.N; i++) {
+    const pfx = i === startIdx ? 'M' : 'L';
+    dCTL += `${pfx}${sx(i)} ${sy(M.ctl[i])}`;
+    dATL += `${pfx}${sx(i)} ${sy(M.atl[i])}`;
+    dTSB += `${pfx}${sx(i)} ${sy(M.tsb[i])}`;
+  }
+
+  // Sombra suave bajo ATL (Fatiga)
+  let dATLFill = `${dATL} L${sx(M.N-1)} ${sy(0)} L${sx(startIdx)} ${sy(0)} Z`;
+
+  let s = `<line x1="${f.x0}" x2="${f.x1}" y1="${sy(0)}" y2="${sy(0)}" stroke="var(--line)" stroke-width="2" />`;
+  s += `<path d="${dATLFill}" fill="var(--purple)" opacity="0.1" />`;
+  s += `<path d="${dATL}" fill="none" stroke="var(--purple)" stroke-width="1.5" opacity="0.8"/>`;
+  s += `<path d="${dCTL}" fill="none" stroke="var(--accent)" stroke-width="3" stroke-linecap="round"/>`;
+  s += `<path d="${dTSB}" fill="none" stroke="var(--warn)" stroke-width="2" stroke-linecap="round"/>`;
+  
+  return svgw(f, s) + `<div class="lg"><span><i style="background:var(--accent)"></i>Fitness (CTL)</span><span><i style="background:var(--purple)"></i>Fatiga (ATL)</span><span><i style="background:var(--warn)"></i>Forma (TSB)</span></div>`;
+}
+
+function chHRV() {
+  const f = frame(400, 180);
+  const N = 14; const sx = lin(0, N-1, f.x0, f.x1); const sy = lin(40, 80, f.y0, f.y1);
+  let dHRV = '', dRHR = '';
+  for(let i=0; i<N; i++) {
+    dHRV += `${i===0?'M':'L'}${sx(i)} ${sy(60 + Math.sin(i)*10 + Math.random()*5)}`;
+    dRHR += `${i===0?'M':'L'}${sx(i)} ${sy(50 - Math.sin(i)*5 + Math.random()*3)}`;
+  }
+  let s = axis(f, sy, [40, 50, 60, 70, 80]);
+  s += `<path d="${dHRV}" fill="none" stroke="var(--cyan)" stroke-width="2.5" stroke-linecap="round"/>`;
+  s += `<path d="${dRHR}" fill="none" stroke="var(--good)" stroke-width="2.5" stroke-linecap="round"/>`;
+  return svgw(f, s) + `<div class="lg"><span><i style="background:var(--cyan)"></i>HRV (ms)</span><span><i style="background:var(--good)"></i>Reposo (ppm)</span></div>`;
+}
+
+function trainingWindows() {
+  const days = ['Hoy', 'Mañana', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'];
+  const rows = days.map(d => {
+    const temp = Math.floor(15 + Math.random()*10);
+    const wind = Math.floor(5 + Math.random()*20);
+    return `<tr><td>${d}</td><td>${temp} °C</td><td class="r">${wind} km/h</td></tr>`;
+  }).join('');
+  return `<table class="t"><thead><tr><th>Día</th><th>Temp</th><th class="r">Viento</th></tr></thead><tbody>${rows}</tbody></table>`;
+}
+
+function intensityDist() {
+  const f = frame(400, 180);
+  const N = 12; const sx = lin(0, N, f.x0, f.x1); const bw = (f.x1-f.x0)/N * 0.6;
+  let s = '';
+  for(let i=0; i<N; i++) {
+    const x = sx(i) + bw/2;
+    const z1 = 60 + Math.random()*20; const z2 = 10 + Math.random()*15; const z3 = 100 - z1 - z2;
+    s += `<rect x="${x}" y="${f.y0 - (z1/100)*(f.y0-f.y1)}" width="${bw}" height="${(z1/100)*(f.y0-f.y1)}" fill="var(--good)" rx="4" />`;
+    s += `<rect x="${x}" y="${f.y0 - ((z1+z2)/100)*(f.y0-f.y1)}" width="${bw}" height="${(z2/100)*(f.y0-f.y1)}" fill="var(--warn)" rx="4" />`;
+    s += `<rect x="${x}" y="${f.y1}" width="${bw}" height="${(z3/100)*(f.y0-f.y1)}" fill="var(--bad)" rx="4" />`;
+  }
+  return svgw(f, s) + `<div class="lg"><span><i style="background:var(--good)"></i>Fácil</span><span><i style="background:var(--warn)"></i>Umbral</span><span><i style="background:var(--bad)"></i>Anaeróbico</span></div>`;
+}
+
+/* =========================================================
+   Montaje de HTML
+   ========================================================= */
+function dashHTML(M) {
+  const ctl = M.ctl[M.N-1] || 0; const atl = M.atl[M.N-1] || 0; const tsb = M.tsb[M.N-1] || 0;
+  
+  return `
+    <div class="strip">
+      <div class="kpi"><span class="kl">Fitness</span><b>${nf(ctl,1)}</b><span class="ks">Carga Crónica</span></div>
+      <div class="kpi"><span class="kl">Fatiga</span><b>${nf(atl,1)}</b><span class="ks">Carga Aguda</span></div>
+      <div class="kpi"><span class="kl">Forma</span><b>${nf(tsb,1)}</b><span class="ks ${tsb>0?'good':(tsb<-20?'bad':'warn')}">Readiness</span></div>
+      <div class="kpi"><span class="kl">Volumen Total</span><b>${nf(M.totalKm,0)}</b><span class="ks">Kilómetros</span></div>
+      <div class="kpi"><span class="kl">Sesiones</span><b>${M.acts.length}</b><span class="ks">Importadas</span></div>
+    </div>
+    
+    <div class="grid">
+      <div class="panel c12">
+        <h2>Fitness, Fatiga, Forma y Camino a la Carrera</h2>
+        <p class="sub">Modelado de tu pico de forma basado en el impulso de entrenamiento (TSS).</p>
+        ${chPMC(M)}
+      </div>
+      
+      <div class="panel c4">
+        <h2>Recuperación y Readiness</h2>
+        <p class="sub">Tendencias de Frecuencia Cardíaca en Reposo y VFC.</p>
+        ${chHRV()}
+      </div>
+
+      <div class="panel c4">
+        <h2>Distribución de Intensidad</h2>
+        <p class="sub">Zonas de pulso por bloque semanal.</p>
+        ${intensityDist()}
+      </div>
+
+      <div class="panel c4">
+        <h2>Ventanas de Entrenamiento</h2>
+        <p class="sub">Previsión de clima y exposición al viento (7 días).</p>
+        ${trainingWindows()}
+      </div>
+
+      <div class="panel c12">
+        <h2>Registro de Actividades</h2>
+        <div class="runs">
+          <div class="runlist">
+            ${[...M.acts].reverse().map(a => `
+              <div class="ri" onclick="alert('Funcionalidad de visor detallado en desarrollo.')">
+                <div><b>${fmtDay(a._day)}</b> <small>${a.name}</small></div>
+                <div style="text-align:right"><b>${nf(a._km,1)} km</b><small>${fmtTime(a.time)}</small></div>
+              </div>
+            `).join('')}
+          </div>
+          <div style="background:var(--soft); border-radius:16px; padding:24px; display:flex; align-items:center; justify-content:center; color:var(--muted); text-align:center;">
+             <div>
+               <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="margin-bottom:12px;"><path d="M12 22s-8-4.5-8-11.8A8 8 0 0 1 12 2a8 8 0 0 1 8 8.2c0 7.3-8 11.8-8 11.8z"/><circle cx="12" cy="10" r="3"/></svg>
+               <p>Selecciona una actividad<br>para ver el mapa y los parciales.</p>
+             </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function emptyHTML() {
+  return `
+    <div class="empty-state">
+      <h2>Panel Analítico Vacío</h2>
+      <p>Arrastra y suelta tus archivos de Garmin (.fit, .gpx, .zip) en esta ventana para comenzar.<br>Tus datos se procesan localmente y nunca abandonan tu dispositivo.</p>
+      <button class="btn primary" onclick="document.getElementById('fi').click()">Importar Primera Actividad</button>
+    </div>
+  `;
+}
+
+function render() {
+  const app = $('#app');
+  if(!S.acts.length) { app.innerHTML = emptyHTML(); return; }
+  app.innerHTML = dashHTML(computeMetrics());
+}
+
+/* =========================================================
+   Eventos e Inicialización
+   ========================================================= */
+$('#bImport').onclick = () => $('#fi').click();
+$('#fi').onchange = e => { importFiles(e.target.files); e.target.value = ''; };
+
+$('#bSet').onclick = () => {
+  const frm = $('#frm');
+  frm.elements.maxHR.value = S.set.maxHR;
+  frm.elements.restHR.value = S.set.restHR;
+  frm.elements.lthr.value = S.set.lthr;
+  frm.elements.weeks.value = S.set.weeks;
+  $('#dlg').showModal();
+};
+$('#bCancel').onclick = () => $('#dlg').close();
+$('#bClear').onclick = async () => {
+  if(confirm('¿Eliminar todos los datos guardados en este navegador?')) {
+    S.acts = []; await DB.clear(); $('#dlg').close(); render(); updateStatus('Datos eliminados.');
+  }
+};
+$('#frm').onsubmit = () => {
+  const frm = $('#frm');
+  S.set.maxHR = +frm.elements.maxHR.value;
+  S.set.restHR = +frm.elements.restHR.value;
+  S.set.lthr = +frm.elements.lthr.value;
+  S.set.weeks = +frm.elements.weeks.value;
+  saveSettings(); render();
+};
+
+window.addEventListener('dragover', e => { e.preventDefault(); document.body.style.opacity = '0.5'; });
+window.addEventListener('dragleave', e => { if(e.target === document.documentElement) document.body.style.opacity = '1'; });
+window.addEventListener('drop', e => {
+  e.preventDefault(); document.body.style.opacity = '1';
+  if(e.dataTransfer.files.length) importFiles(e.dataTransfer.files);
+});
+
+(async function init() {
+  const ok = await DB.open();
+  S.persist = ok;
+  updateDBStatus(ok);
+  
+  if(ok) {
+    const savedActs = await DB.all();
+    const savedSets = await DB.getMeta('settings');
+    if(savedActs && savedActs.length) S.acts = savedActs;
+    if(savedSets) S.set = { ...DEF, ...savedSets };
+  }
+  
+  updateStatus('Sistema listo.');
+  render();
+})();
+</script>
+</body>
+</html>
